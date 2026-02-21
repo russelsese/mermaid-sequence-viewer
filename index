@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mermaid Sequence Diagram Renderer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Mermaid -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --card-bg: #ffffff;
+      --border: #dcdfe4;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --radius: 8px;
+    }
+
+    [data-theme="dark"] {
+      --bg: #0f172a;
+      --card-bg: #020617;
+      --border: #1e293b;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --primary: #38bdf8;
+      --primary-hover: #0ea5e9;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 24px auto;
+      padding: 0 16px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 220px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 14px;
+      padding: 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      resize: vertical;
+      background: var(--card-bg);
+      color: var(--text);
+    }
+
+    .actions {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: none;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      background: var(--primary);
+      color: #fff;
+    }
+
+    button:hover {
+      background: var(--primary-hover);
+    }
+
+    .diagram-container {
+      overflow-x: auto;
+      padding: 12px;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      min-height: 100px;
+      background: rgba(0,0,0,0.03);
+    }
+
+    .error {
+      color: #ef4444;
+      font-family: ui-monospace, monospace;
+      white-space: pre-wrap;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+      padding: 16px;
+    }
+
+    footer a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  Mermaid Sequence Diagram Renderer
+  <button id="themeToggle">🌙 Dark</button>
+</header>
+
+<main>
+
+  <div class="card">
+    <div class="card-title">Mermaid Definition</div>
+
+    <textarea id="mermaidInput"></textarea>
+
+    <div class="actions">
+      <button onclick="downloadText()">Download TXT</button>
+      <button onclick="downloadSVG()">Download SVG</button>
+      <button onclick="downloadPNG()">Download PNG</button>
+      <button onclick="copyPNG()">Copy PNG</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Rendered Diagram</div>
+    <div id="diagram" class="diagram-container"></div>
+  </div>
+
+</main>
+
+<footer>
+  Client-side only · Autosaved locally ·
+  <a href="https://github.com/russelsese" target="_blank" rel="noopener">
+    [GitHub](chatgpt://generic-entity?number=0) / russelsese
+  </a>
+</footer>
+
+<script>
+  const STORAGE_KEY = "mermaid-seq-diagram-content";
+  const THEME_KEY = "mermaid-seq-diagram-theme";
+
+  const input = document.getElementById("mermaidInput");
+  const container = document.getElementById("diagram");
+  const themeToggle = document.getElementById("themeToggle");
+
+  let debounceTimer;
+
+  // -------------------------
+  // Theme
+  // -------------------------
+  function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    themeToggle.textContent = theme === "dark" ? "☀️ Light" : "🌙 Dark";
+
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: "strict",
+      theme: theme === "dark" ? "dark" : "default"
+    });
+
+    renderDiagram();
+  }
+
+  const savedTheme =
+    localStorage.getItem(THEME_KEY) ||
+    (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+
+  applyTheme(savedTheme);
+
+  themeToggle.onclick = () => {
+    const newTheme =
+      document.documentElement.getAttribute("data-theme") === "dark"
+        ? "light"
+        : "dark";
+    localStorage.setItem(THEME_KEY, newTheme);
+    applyTheme(newTheme);
+  };
+
+  // -------------------------
+  // Autosave + Render
+  // -------------------------
+  input.value =
+    localStorage.getItem(STORAGE_KEY) ||
+`sequenceDiagram
+    participant User
+    participant App
+    participant API
+
+    User->>App: Click Login
+    App->>API: Authenticate
+    API-->>App: Token
+    App-->>User: Logged in`;
+
+  input.addEventListener("input", () => {
+    localStorage.setItem(STORAGE_KEY, input.value);
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(renderDiagram, 300);
+  });
+
+  async function renderDiagram() {
+    container.innerHTML = "";
+    if (!input.value.trim()) return;
+
+    try {
+      const { svg } = await mermaid.render(
+        "diagram-" + Date.now(),
+        input.value
+      );
+      container.innerHTML = svg;
+    } catch (err) {
+      container.innerHTML = `<div class="error">${err.message}</div>`;
+    }
+  }
+
+  // -------------------------
+  // Downloads
+  // -------------------------
+  function downloadText() {
+    downloadBlob(input.value, "text/plain", "txt");
+  }
+
+  function downloadSVG() {
+    const svg = container.querySelector("svg");
+    if (!svg) return alert("Render a diagram first.");
+    downloadBlob(svg.outerHTML, "image/svg+xml", "svg");
+  }
+
+  function downloadPNG() {
+    svgToCanvas(blob => {
+      downloadBlob(blob, "image/png", "png", true);
+    });
+  }
+
+  function copyPNG() {
+    if (!navigator.clipboard || !window.ClipboardItem) {
+      alert("Clipboard image copy is not supported in this browser.");
+      return;
+    }
+
+    svgToCanvas(blob => {
+      navigator.clipboard.write([
+        new ClipboardItem({ "image/png": blob })
+      ]).then(() => {
+        alert("PNG copied to clipboard.");
+      }).catch(err => {
+        alert("Failed to copy image: " + err.message);
+      });
+    });
+  }
+
+  function svgToCanvas(callback) {
+    const svg = container.querySelector("svg");
+    if (!svg) return alert("Render a diagram first.");
+
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+
+    const svgBlob = new Blob([svgData], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(svgBlob);
+
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(callback);
+    };
+
+    img.src = url;
+  }
+
+  function downloadBlob(content, type, ext, isBlob = false) {
+    if (!content) return;
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const blob = isBlob ? content : new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `mermaid-seq-diag-${timestamp}.${ext}`;
+    a.click();
+
+    URL.revokeObjectURL(url);
+  }
+
+  // Initial render
+  renderDiagram();
+</script>
+
+</body>
+</html>
