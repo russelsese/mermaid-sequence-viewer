@@ -164,7 +164,7 @@
 <footer>
   Client-side only · Autosaved locally ·
   <a href="https://github.com/russelsese" target="_blank" rel="noopener">
-    [GitHub](chatgpt://generic-entity?number=0) / russelsese
+    GitHub / russelsese
   </a>
 </footer>
 
@@ -181,6 +181,8 @@
   // -------------------------
   // Theme
   // -------------------------
+  let themeInitialized = false;
+
   function applyTheme(theme) {
     document.documentElement.setAttribute("data-theme", theme);
     themeToggle.textContent = theme === "dark" ? "☀️ Light" : "🌙 Dark";
@@ -191,7 +193,7 @@
       theme: theme === "dark" ? "dark" : "default"
     });
 
-    renderDiagram();
+    if (themeInitialized) renderDiagram();
   }
 
   const savedTheme =
@@ -241,7 +243,10 @@
       );
       container.innerHTML = svg;
     } catch (err) {
-      container.innerHTML = `<div class="error">${err.message}</div>`;
+      const errDiv = document.createElement("div");
+      errDiv.className = "error";
+      errDiv.textContent = err.message;
+      container.appendChild(errDiv);
     }
   }
 
@@ -301,6 +306,11 @@
       canvas.toBlob(callback);
     };
 
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      alert("Failed to load SVG for PNG conversion.");
+    };
+
     img.src = url;
   }
 
@@ -320,6 +330,7 @@
   }
 
   // Initial render
+  themeInitialized = true;
   renderDiagram();
 </script>
 
