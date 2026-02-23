@@ -2,6 +2,12 @@
 
 > A zero-dependency, client-side tool for authoring and exporting [Mermaid](https://mermaid.js.org/) diagrams — live in your browser.
 
+## Live Demo
+
+**[View the POC → https://russelsese.github.io/mermaid-sequence-viewer/](https://russelsese.github.io/mermaid-sequence-viewer/)**
+
+> Open the link above on a mobile device or use your browser's DevTools to emulate a mobile screen (390px width recommended) for the best experience.
+
 ---
 
 ## Overview
